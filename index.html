@@ -5,9 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="theme-color" content="#0d1117">
+  <meta name="theme-color" content="#0b0e14">
   <link rel="manifest" href="manifest.json">
-  <title>나 혼자만 상한가 - 인생회귀 게임</title>
+  <title>나 혼자만 상한가 v3 - 인생회귀 게임</title>
   <style>
     :root {
       --bg: #0b0e14;
@@ -415,6 +415,16 @@
       align-items: center;
     }
 
+    /* 미니 차트 컨테이너 */
+    .mini-chart-wrap {
+      margin-top: 8px;
+      background: #0d1117;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 6px;
+      text-align: center;
+    }
+
     /* 토스트 알림 */
     #toast {
       position: fixed;
@@ -469,11 +479,11 @@
 <div id="app">
   <!-- ==================== 1. 캐릭터 생성 및 타이틀 화면 ==================== -->
   <div id="start-screen">
-    <div class="intro-sub">진짜로 대박나는 인생회귀 게임</div>
+    <div class="intro-sub">진짜로 대박나는 인생회귀 게임 v3</div>
     <h1 class="intro-title">나 혼자만 <span>상한가</span></h1>
     <div class="intro-desc">
       미래를 아는 단 한 번의 인생 —<br>
-      이번엔 <b>상한가</b>만 노린다.
+      이번엔 <b>상한가</b>와 <b>대출 레버리지</b>로 1조 클럽을 노린다!
     </div>
 
     <!-- 기존 세이브 데이터가 있을 때 뜨는 빠른 이어하기 배너 -->
@@ -528,8 +538,8 @@
           <button class="save-top-btn" onclick="manualQuickSave()">💾 저장</button>
         </div>
       </div>
-      <div class="asset-val" id="hudNetWorth">총자산: 1,000만 원</div>
-      <div class="sub-asset">보유 현금: <span id="hudCash" style="color:#fff;">1,000만 원</span> | 선물 증거금: <span id="hudMargin">0원</span></div>
+      <div class="asset-val" id="hudNetWorth">순자산: 1,000만 원</div>
+      <div class="sub-asset">보유 현금: <span id="hudCash" style="color:#fff;">1,000만 원</span> | 대출 잔액: <span id="hudDebt" style="color:var(--red);">0원</span></div>
     </header>
 
     <!-- 탭 1: 대시보드 -->
@@ -560,11 +570,19 @@
       </div>
     </section>
 
-    <!-- 탭 2: 현물 주식 -->
+    <!-- 탭 2: 현물 주식 & 미니 차트 -->
     <section id="tab-stocks" class="tab-content">
       <div class="card">
-        <div class="card-title">현물 거래소 (Stock Market)</div>
+        <div class="card-title">현물 거래소 (종목 클릭시 12개월 차트)</div>
         <div id="stockList"></div>
+      </div>
+
+      <!-- 선택된 종목 미니 차트 뷰 -->
+      <div class="card" id="chartCardBox">
+        <div class="card-title" id="chartCardTitle">📉 종목 실시간 12개월 추이</div>
+        <div class="mini-chart-wrap" id="miniChartContainer">
+          종목을 선택하면 차트가 표시됩니다.
+        </div>
       </div>
 
       <div class="card trade-box">
@@ -626,8 +644,27 @@
       </div>
     </section>
 
-    <!-- 탭 4: 부동산 & 벤처 -->
+    <!-- 탭 4: 부동산 & 벤처 & 은행(대출) -->
     <section id="tab-assets" class="tab-content">
+      <div class="card" style="border-color: rgba(91,141,239,0.4);">
+        <div class="card-title" style="color:var(--blue);">
+          🏦 미래은행 영끌 대출소 (Loan)
+        </div>
+        <div style="font-size:12px; color:var(--text-muted); margin-bottom:10px;">
+          * 신용도와 직급에 따라 대출 한도가 늘어납니다 (월 이자 1.5% 부과).
+        </div>
+        <div style="font-size:13px; margin-bottom:8px;">
+          현재 대출 잔액: <b id="loanStatusText" style="color:var(--red);">0원</b> (월 이자: <span id="loanInterestText">0원</span>)
+        </div>
+        <div class="input-row">
+          <input type="number" id="loanAmountInput" placeholder="대출/상환할 금액 입력" min="100000">
+        </div>
+        <div class="input-row" style="margin-top:8px;">
+          <button class="btn btn-blue" style="flex:1;" onclick="takeLoan()">대출 실행 (+)</button>
+          <button class="btn btn-dark" style="flex:1;" onclick="repayLoan()">대출 상환 (-)</button>
+        </div>
+      </div>
+
       <div class="card">
         <div class="card-title">부동산 매매 (월세/시세차익)</div>
         <div id="realEstateList"></div>
@@ -657,7 +694,7 @@
       <div class="card">
         <div class="card-title">💾 슬롯 저장 & 불러오기</div>
         <div style="font-size:12px; color:var(--text-muted); margin-bottom:10px;">
-          * 매 턴 진행 시 자동 저장되며, 원하는 시점을 아래 3개 슬롯에 따로 보관할 수 있습니다. (무제한 선물 베팅 전 필수!)
+          * 매 턴 진행 시 자동 저장되며, 원하는 시점을 아래 3개 슬롯에 따로 보관할 수 있습니다.
         </div>
         <div id="saveSlotsContainer"></div>
       </div>
@@ -694,13 +731,13 @@
         <span class="nav-icon">📊</span>홈
       </button>
       <button class="nav-btn" onclick="switchTab('stocks')">
-        <span class="nav-icon">📈</span>현물주식
+        <span class="nav-icon">📈</span>현물차트
       </button>
       <button class="nav-btn" onclick="switchTab('futures')">
         <span class="nav-icon">⚡</span>무제한선물
       </button>
       <button class="nav-btn" onclick="switchTab('assets')">
-        <span class="nav-icon">🏢</span>부동산
+        <span class="nav-icon">🏦</span>대출/부동산
       </button>
       <button class="nav-btn" onclick="switchTab('flex')">
         <span class="nav-icon">👑</span>플렉스
@@ -713,13 +750,13 @@
 </div>
 
 <script>
-/* ==================== 1. 7종 캐릭터 프리셋 데이터 ==================== */
+/* ==================== 1. 캐릭터 생성 프리셋 ==================== */
 const characterPresets = [
   {
     id: "BASIC",
     name: "기본형",
     headline: "기본형 — 균형 잡힌 시작",
-    desc: "어느 한쪽으로도 치우치지 않는다. 처음 하는 사람에게 무난하고, 어떤 길로 가든 막히는 곳이 없다. 대신 특별히 빠른 것도 없다.",
+    desc: "어느 한쪽으로도 치우치지 않는다. 처음 하는 사람에게 무난하고, 어떤 길로 가든 막히는 곳이 없다.",
     bonusText: "초기자금 1,500만 원 / 모든 능력치 밸런스",
     initCash: 15000000,
     stats: { int: 10, charm: 10, sta: 10, net: 5, act: 5 },
@@ -729,7 +766,7 @@ const characterPresets = [
     id: "VISUAL",
     name: "외모형",
     headline: "외모형 — 타고난 매력의 소유자",
-    desc: "어딜 가나 시선을 사로잡는 외모. 사교 모임과 플렉스 아이템 효율이 뛰어나며 연예계/셀럽 인맥 형성에 유리하다.",
+    desc: "어딜 가나 시선을 사로잡는 외모. 사교 모임과 플렉스 아이템 할인 혜택을 받는다.",
     bonusText: "매력 20 / 플렉스 아이템 구매 시 15% 할인",
     initCash: 12000000,
     stats: { int: 8, charm: 20, sta: 10, net: 12, act: 6 },
@@ -739,7 +776,7 @@ const characterPresets = [
     id: "BRAIN",
     name: "두뇌형",
     headline: "두뇌형 — 냉철한 분석가",
-    desc: "차트와 재무제표를 꿰뚫어 보는 명석한 두뇌. 직장에서 빠르게 승진하며 배당 및 투자 수익 효율이 높다.",
+    desc: "차트와 재무제표를 꿰뚫어 보는 명석한 두뇌. 승진 비용이 저렴하고 배당금이 더 들어온다.",
     bonusText: "지능 20 / 이직·승진 비용 25% 절감 & 배당 +20%",
     initCash: 15000000,
     stats: { int: 20, charm: 8, sta: 8, net: 8, act: 8 },
@@ -749,7 +786,7 @@ const characterPresets = [
     id: "STAMINA",
     name: "체력형",
     headline: "체력형 — 지치지 않는 열정",
-    desc: "밤샘 근무와 아르바이트도 거뜬한 강철 체력. 초기 노동 수익과 행동력이 높아 시드머니를 빠르게 모은다.",
+    desc: "밤샘 근무와 아르바이트도 거뜬한 강철 체력. 매달 기본 월급이 30% 더 들어온다.",
     bonusText: "체력 20 / 매월 기본 월급 +30% 추가 수령",
     initCash: 12000000,
     stats: { int: 8, charm: 10, sta: 20, net: 6, act: 14 },
@@ -759,7 +796,7 @@ const characterPresets = [
     id: "GENIUS",
     name: "천재형",
     headline: "천재형 — 시대를 앞서가는 직관",
-    desc: "남들이 보지 못하는 폭등 시그널을 읽는 천재. 비상장 벤처투자와 선물 트레이딩에서 압도적 감각을 발휘한다.",
+    desc: "남들이 보지 못하는 폭등 시그널을 읽는 천재. 비상장 벤처투자 수익이 대폭 증가한다.",
     bonusText: "지능 25 / 비상장 벤처 보상 +30% 추가 획득",
     initCash: 15000000,
     stats: { int: 25, charm: 12, sta: 6, net: 5, act: 10 },
@@ -769,7 +806,7 @@ const characterPresets = [
     id: "INSIDER",
     name: "마당발",
     headline: "마당발 — 정재계 고급 정보통",
-    desc: "모르는 사람이 없는 인맥의 달인. 부동산 급매물과 작전주 세력의 동향을 누구보다 먼저 입수한다.",
+    desc: "모르는 사람이 없는 인맥의 달인. 부동산 월세 수익이 크게 상승한다.",
     bonusText: "인맥 22 / 부동산 월세 수익 +25% 상승",
     initCash: 15000000,
     stats: { int: 10, charm: 14, sta: 10, net: 22, act: 10 },
@@ -779,7 +816,7 @@ const characterPresets = [
     id: "GOLD",
     name: "금수저",
     headline: "금수저 — 압도적인 초기 자본",
-    desc: "태어날 때부터 든든한 집안 배경을 가진 금수저. 남들이 알바로 시드 모을 때 곧바로 굵직한 투자를 시작한다.",
+    desc: "태어날 때부터 든든한 집안 배경을 가진 금수저. 1억 원의 거대한 시드머니로 시작한다.",
     bonusText: "초기자금 1억 원으로 시작!",
     initCash: 100000000,
     stats: { int: 12, charm: 16, sta: 8, net: 18, act: 6 },
@@ -790,7 +827,7 @@ const characterPresets = [
 let selectedGender = 'M';
 let selectedCharId = 'BASIC';
 
-/* ==================== 2. 아바타 SVG & 오각형 레이더 생성 ==================== */
+/* ==================== 2. 아바타 SVG & 레이더 ==================== */
 function getAvatarSVG(preset, gender) {
   const hairColor = gender === 'M' ? preset.hairM : preset.hairF;
   const glassesSVG = preset.glasses
@@ -806,19 +843,14 @@ function getAvatarSVG(preset, gender) {
   return `
   <svg viewBox="0 0 100 100" width="100%" height="100%">
     ${femaleHairLong}
-    <!-- 의상 -->
     <path d="M16 100 Q20 70 50 70 Q80 70 84 100 Z" fill="${preset.clothes}"/>
     <polygon points="40,70 60,70 55,100 45,100" fill="${preset.inner}"/>
-    <!-- 목 -->
     <rect x="43" y="56" width="14" height="16" rx="4" fill="#f3cfb6"/>
-    <!-- 얼굴 -->
     <ellipse cx="50" cy="42" rx="19" ry="22" fill="#fce0cb"/>
-    <!-- 눈/입 -->
     <circle cx="40" cy="42" r="2.2" fill="#222"/>
     <circle cx="60" cy="42" r="2.2" fill="#222"/>
     <path d="M45 53 Q50 56 55 53" stroke="#b87b64" stroke-width="2" fill="none" stroke-linecap="round"/>
     ${glassesSVG}
-    <!-- 헤어 -->
     <path d="M29 38 Q30 15 50 16 Q70 15 71 38 Q65 26 50 28 Q35 26 29 38 Z" fill="${hairColor}"/>
   </svg>`;
 }
@@ -905,7 +937,7 @@ function selectCharacter(id) {
   renderCharacterCreator();
 }
 
-/* ==================== 3. 게임 상태 및 기본 데이터 ==================== */
+/* ==================== 3. 게임 상태 및 데이터 ==================== */
 const defaultStockPrices = {
   SAMSUNG: 30000,
   APPLE: 8000,
@@ -925,6 +957,7 @@ let state = {
   year: 1998,
   month: 1,
   cash: 15000000,
+  debt: 0, // 💡 v3 신규: 대출 잔액
   jobLevel: 0,
   stocks: {},
   positions: [],
@@ -932,7 +965,15 @@ let state = {
   ventures: [],
   flexItems: [],
   marketPrices: { ...defaultStockPrices },
-  nasdaqPrice: 1200
+  nasdaqPrice: 1200,
+  priceHistory: { // 💡 v3 신규: 종목별 최근 12개월 가격 기록
+    SAMSUNG: [30000],
+    APPLE: [8000],
+    NVDA: [5000],
+    JEPI_TYPE: [40000],
+    DOTCOM: [2000],
+    BTC: [1000]
+  }
 };
 
 const jobs = [
@@ -988,9 +1029,9 @@ const historicalEvents = {
 
 let selectedStockId = 'SAMSUNG';
 
-/* ==================== 4. 게임 시작 & 세이브/로드 시스템 ==================== */
-const AUTO_SAVE_KEY = "SOLO_LIMIT_UP_AUTOSAVE_V2";
-const SLOT_PREFIX = "SOLO_LIMIT_UP_SLOT_V2_";
+/* ==================== 4. 게임 시작 & 저장/로드 ==================== */
+const AUTO_SAVE_KEY = "SOLO_LIMIT_UP_AUTOSAVE_V3";
+const SLOT_PREFIX = "SOLO_LIMIT_UP_SLOT_V3_";
 
 function showToast(msg) {
   const t = document.getElementById('toast');
@@ -1015,9 +1056,11 @@ function startNewGame() {
   const nameVal = document.getElementById('playerNameInput').value.trim() || "성진우";
   const preset = characterPresets.find(x => x.id === selectedCharId);
 
+  let initialHistory = {};
   stockData.forEach(s => {
     s.price = defaultStockPrices[s.id];
     s.lastChange = 0;
+    initialHistory[s.id] = [s.price];
   });
 
   state = {
@@ -1030,6 +1073,7 @@ function startNewGame() {
     year: 1998,
     month: 1,
     cash: preset.initCash,
+    debt: 0,
     jobLevel: 0,
     stocks: {},
     positions: [],
@@ -1037,7 +1081,8 @@ function startNewGame() {
     ventures: [],
     flexItems: [],
     marketPrices: { ...defaultStockPrices },
-    nasdaqPrice: 1200
+    nasdaqPrice: 1200,
+    priceHistory: initialHistory
   };
 
   saveGameToStorage(AUTO_SAVE_KEY, false);
@@ -1078,6 +1123,10 @@ function loadGameFromStorage(key) {
   try {
     const parsed = JSON.parse(raw);
     state = parsed.state;
+    if (!state.priceHistory) {
+      state.priceHistory = {};
+      stockData.forEach(s => { state.priceHistory[s.id] = [s.price]; });
+    }
     applyPricesFromState();
     enterGameScreen();
     showToast("📂 데이터를 불러왔습니다!");
@@ -1104,7 +1153,7 @@ function checkExistingAutoSave() {
     const st = parsed.state;
     const preset = characterPresets.find(x => x.id === st.player.charId) || characterPresets[0];
     document.getElementById('continueSummary').innerText =
-      `${st.player.name} (${preset.name}) | ${st.year}년 ${st.month}월 | 현금 ${fmt(st.cash)}`;
+      `${st.player.name} (${preset.name}) | ${st.year}년 ${st.month}월 | 순자산 ${fmt(calculateNetWorth(st))}`;
     box.style.display = 'flex';
   } catch (e) {
     box.style.display = 'none';
@@ -1113,6 +1162,28 @@ function checkExistingAutoSave() {
 
 function loadAutoSaveAndStart() {
   loadGameFromStorage(AUTO_SAVE_KEY);
+}
+
+function calculateNetWorth(st) {
+  let stockValue = 0;
+  for (let id in st.stocks) {
+    const hold = st.stocks[id];
+    const s = stockData.find(x => x.id === id);
+    if (hold && hold.qty > 0 && s) stockValue += hold.qty * s.price;
+  }
+  let futuresVal = 0;
+  (st.positions || []).forEach(pos => {
+    const curP = pos.symbol === 'NASDAQ' ? st.nasdaqPrice : (stockData.find(x => x.id === pos.symbol)?.price || pos.entryPrice);
+    const ratio = (curP - pos.entryPrice) / pos.entryPrice;
+    let ret = (pos.type === 'LONG') ? (ratio * pos.leverage) : (-ratio * pos.leverage);
+    futuresVal += Math.max(0, pos.margin * (1 + ret));
+  });
+  let reVal = 0;
+  (st.realEstates || []).forEach(rId => {
+    const r = realEstateData.find(x => x.id === rId);
+    if (r) reVal += r.price;
+  });
+  return st.cash + stockValue + futuresVal + reVal - (st.debt || 0);
 }
 
 function renderSaveSlots() {
@@ -1126,7 +1197,8 @@ function renderSaveSlots() {
     if (raw) {
       try {
         const p = JSON.parse(raw);
-        infoText = `${p.state.player.name} (${p.state.year}.${p.state.month}) | 현금 ${fmt(p.state.cash)}<br><span style="font-size:10px; color:#8b949e;">저장시각: ${p.savedAt}</span>`;
+        const nw = calculateNetWorth(p.state);
+        infoText = `${p.state.player.name} (${p.state.year}.${p.state.month}) | 순자산 ${fmt(nw)}<br><span style="font-size:10px; color:#8b949e;">저장시각: ${p.savedAt}</span>`;
       } catch (e) {}
     }
     html += `
@@ -1152,7 +1224,7 @@ function exportSaveFile() {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `나혼자만상한가_${state.player.name}_${state.year}년.json`;
+  a.download = `나혼자만상한가v3_${state.player.name}_${state.year}년.json`;
   a.click();
   URL.revokeObjectURL(url);
   showToast("📥 세이브 파일 다운로드 완료!");
@@ -1176,6 +1248,10 @@ function importSaveCode() {
     const jsonStr = decodeURIComponent(atob(code));
     const parsed = JSON.parse(jsonStr);
     state = parsed.state;
+    if (!state.priceHistory) {
+      state.priceHistory = {};
+      stockData.forEach(s => { state.priceHistory[s.id] = [s.price]; });
+    }
     applyPricesFromState();
     saveGameToStorage(AUTO_SAVE_KEY, false);
     renderAll();
@@ -1193,6 +1269,10 @@ function importSaveFile(event) {
     try {
       const parsed = JSON.parse(e.target.result);
       state = parsed.state || parsed;
+      if (!state.priceHistory) {
+        state.priceHistory = {};
+        stockData.forEach(s => { state.priceHistory[s.id] = [s.price]; });
+      }
       applyPricesFromState();
       saveGameToStorage(AUTO_SAVE_KEY, false);
       renderAll();
@@ -1204,7 +1284,7 @@ function importSaveFile(event) {
   reader.readAsText(file);
 }
 
-/* ==================== 5. 유틸리티 & 계산 ==================== */
+/* ==================== 5. 유틸리티 & 차트 렌더링 ==================== */
 function fmt(num) {
   num = Math.floor(num);
   if (Math.abs(num) >= 1000000000000) {
@@ -1226,7 +1306,42 @@ function getFuturesPrice(id) {
   return asset.getPrice();
 }
 
-/* ==================== 6. 턴 진행 & 특성 보너스 반영 ==================== */
+// 💡 v3 신규: SVG 미니 차트 생성 함수
+function renderMiniChart(stockId) {
+  const s = getStock(stockId);
+  if (!s) return '';
+  if (!state.priceHistory[stockId]) {
+    state.priceHistory[stockId] = [s.price];
+  }
+  const history = state.priceHistory[stockId];
+  const maxP = Math.max(...history);
+  const minP = Math.min(...history);
+  const range = maxP - minP || 1;
+
+  const w = 320, h = 90;
+  const pts = history.map((p, idx) => {
+    const x = (idx / Math.max(1, history.length - 1)) * (w - 30) + 15;
+    const y = h - 15 - ((p - minP) / range) * (h - 30);
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(' ');
+
+  let circles = history.map((p, idx) => {
+    const x = (idx / Math.max(1, history.length - 1)) * (w - 30) + 15;
+    const y = h - 15 - ((p - minP) / range) * (h - 30);
+    return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="2.5" fill="#f2b938"/>`;
+  }).join('');
+
+  return `
+  <div style="font-size:12px; font-weight:700; color:#c9d1d9; margin-bottom:4px;">📊 ${s.name} 최근 추이 (최대 12개월)</div>
+  <svg viewBox="0 0 ${w} ${h}" width="100%" height="90" style="background:#0d1017; border-radius:6px;">
+    <polyline points="${pts}" fill="none" stroke="#5b8def" stroke-width="2.5" stroke-linejoin="round"/>
+    ${circles}
+    <text x="15" y="14" fill="#8b949e" font-size="9">최고: ${fmt(maxP)}</text>
+    <text x="15" y="${h-4}" fill="#8b949e" font-size="9">최저: ${fmt(minP)}</text>
+  </svg>`;
+}
+
+/* ==================== 6. 턴 진행 및 대출 이자 시스템 ==================== */
 function nextTurn() {
   state.month++;
   if (state.month > 12) {
@@ -1247,11 +1362,18 @@ function nextTurn() {
     let changePct = trend + noise;
     s.price = Math.max(10, Math.floor(s.price * (1 + changePct)));
     s.lastChange = changePct;
+
+    // 가격 기록 관리 (최대 12개월 유지)
+    if (!state.priceHistory[s.id]) state.priceHistory[s.id] = [];
+    state.priceHistory[s.id].push(s.price);
+    if (state.priceHistory[s.id].length > 12) {
+      state.priceHistory[s.id].shift();
+    }
   });
 
   state.nasdaqPrice = Math.max(100, Math.floor(state.nasdaqPrice * (1 + (Math.random() - 0.48) * 0.1)));
 
-  // 캐릭터 특성 보너스 반영
+  // 캐릭터 특성 보너스
   const charId = state.player.charId;
   let salaryBonus = (charId === 'STAMINA') ? 1.3 : 1.0;
   let divBonus = (charId === 'BRAIN') ? 1.2 : 1.0;
@@ -1275,24 +1397,81 @@ function nextTurn() {
     if (r) rentSum += Math.floor(r.rent * rentBonus);
   });
 
+  // 💡 v3 신규: 대출 이자 납부 (월 1.5%)
+  let monthlyInterest = 0;
+  if (state.debt > 0) {
+    monthlyInterest = Math.floor(state.debt * 0.015);
+    state.cash -= monthlyInterest;
+  }
+
   state.cash += (income + dividendSum + rentSum);
   checkFuturesLiquidation();
+
+  // 대출 원금 초과 파산 방지 알림
+  if (state.cash < 0 && state.debt > 0) {
+    alert(`🚨 [자금 경고] 현금이 마이너스(-)가 되어 대출 이자 납부가 지연되고 있습니다! 포지션을 정리하거나 대출을 상환하세요.`);
+  }
 
   state.ventures.forEach((vItem) => {
     if (!vItem.paid && state.year >= vItem.successYear) {
       const reward = Math.floor(vItem.cost * vItem.multi * ventureBonus);
       state.cash += reward;
       vItem.paid = true;
-      alert(`🎉 [엔젤투자 대박 상장!]\n${vItem.name} 지분이 상장되어 +${fmt(reward)} 회수 완료!`);
+      alert(`🎉 [엔젤투자 대박 상장!]
+${vItem.name} 지분이 상장되어 +${fmt(reward)} 회수 완료!`);
     }
   });
 
-  // 매 턴 자동 저장
   saveGameToStorage(AUTO_SAVE_KEY, false);
   renderAll();
 }
 
-/* ==================== 7. 무제한 선물 거래소 ==================== */
+/* ==================== 7. 대출 및 선물 시스템 ==================== */
+function getMaxLoanLimit() {
+  const baseLimit = [10000000, 50000000, 200000000, 1000000000, 5000000000];
+  return baseLimit[state.jobLevel] || 10000000;
+}
+
+function takeLoan() {
+  const amt = parseFloat(document.getElementById('loanAmountInput').value);
+  if (!amt || amt <= 0) {
+    alert("금액을 올바르게 입력하세요.");
+    return;
+  }
+  const limit = getMaxLoanLimit();
+  if (state.debt + amt > limit) {
+    alert(`현재 직급에서의 최대 대출 한도는 ${fmt(limit)}입니다. 더 높은 직급으로 승진하세요!`);
+    return;
+  }
+  state.debt += amt;
+  state.cash += amt;
+  saveGameToStorage(AUTO_SAVE_KEY, false);
+  showToast(`🏦 대출 ${fmt(amt)} 실행 완료`);
+  renderAll();
+}
+
+function repayLoan() {
+  const amt = parseFloat(document.getElementById('loanAmountInput').value);
+  if (!amt || amt <= 0) {
+    alert("금액을 올바르게 입력하세요.");
+    return;
+  }
+  if (amt > state.cash) {
+    alert("상환할 현금이 부족합니다!");
+    return;
+  }
+  if (amt > state.debt) {
+    state.cash -= state.debt;
+    state.debt = 0;
+  } else {
+    state.cash -= amt;
+    state.debt -= amt;
+  }
+  saveGameToStorage(AUTO_SAVE_KEY, false);
+  showToast(`💸 대출 ${fmt(amt)} 상환 완료`);
+  renderAll();
+}
+
 function openFuturesPosition(type) {
   const symbol = document.getElementById('futuresAssetSelect').value;
   const leverage = parseFloat(document.getElementById('futuresLeverage').value);
@@ -1337,7 +1516,9 @@ function checkFuturesLiquidation() {
     let returnRatio = (pos.type === 'LONG') ? (priceChangeRatio * pos.leverage) : (-priceChangeRatio * pos.leverage);
 
     if (returnRatio <= -1.0) {
-      alert(`🚨 [강제 청산 / MARGIN CALL!]\n${pos.symbol} ${pos.type} ${pos.leverage}배 포지션이 청산되었습니다!\n증거금 ${fmt(pos.margin)} 소멸.`);
+      alert(`🚨 [강제 청산 / MARGIN CALL!]
+${pos.symbol} ${pos.type} ${pos.leverage}배 포지션이 청산되었습니다!
+증거금 ${fmt(pos.margin)} 소멸.`);
     } else {
       survivedPositions.push(pos);
     }
@@ -1361,7 +1542,9 @@ function closeFuturesPosition(posId) {
   state.positions.splice(idx, 1);
 
   saveGameToStorage(AUTO_SAVE_KEY, false);
-  alert(`포지션 정산 완료!\n실현 손익: ${pnl >= 0 ? '+' : ''}${fmt(pnl)}\n회수 금액: ${fmt(finalAmount)}`);
+  alert(`포지션 정산 완료!
+실현 손익: ${pnl >= 0 ? '+' : ''}${fmt(pnl)}
+회수 금액: ${fmt(finalAmount)}`);
   renderAll();
 }
 
@@ -1372,6 +1555,7 @@ function selectStock(id) {
   const myHold = state.stocks[id] ? state.stocks[id].qty : 0;
   document.getElementById('selectedStockInfo').innerHTML = 
     `선택: <b>${s.name}</b> (현재가: ${fmt(s.price)}) | 내 보유: <b>${myHold}주</b>`;
+  document.getElementById('miniChartContainer').innerHTML = renderMiniChart(id);
 }
 
 function setStockBuyRatio(ratio) {
@@ -1477,7 +1661,7 @@ function buyFlex(id) {
   renderAll();
 }
 
-/* ==================== 9. 전체 UI 렌더링 ==================== */
+/* ==================== 9. UI 렌더링 ==================== */
 function renderAll() {
   const preset = characterPresets.find(x => x.id === state.player.charId) || characterPresets[0];
   document.getElementById('hudAvatar').innerHTML = getAvatarSVG(preset, state.player.gender);
@@ -1513,11 +1697,11 @@ function renderAll() {
     if (r) realEstateValue += r.price;
   });
 
-  const netWorth = state.cash + stockValue + futuresCurrentValSum + realEstateValue;
+  const netWorth = state.cash + stockValue + futuresCurrentValSum + realEstateValue - state.debt;
 
-  document.getElementById('hudNetWorth').innerText = `총자산: ${fmt(netWorth)}`;
+  document.getElementById('hudNetWorth').innerText = `순자산: ${fmt(netWorth)}`;
   document.getElementById('hudCash').innerText = fmt(state.cash);
-  document.getElementById('hudMargin').innerText = fmt(futuresMarginSum);
+  document.getElementById('hudDebt').innerText = fmt(state.debt);
 
   document.getElementById('summaryStock').innerText = fmt(stockValue);
   document.getElementById('summaryFutures').innerText = fmt(futuresCurrentValSum);
@@ -1525,16 +1709,18 @@ function renderAll() {
   document.getElementById('summaryPnl').innerHTML = `<span class="${pnl >= 0 ? 'up' : 'down'}">${pnl >= 0 ? '+' : ''}${fmt(pnl)}</span>`;
   document.getElementById('summaryRealEstate').innerText = fmt(realEstateValue);
 
-  // 월 고정 수입 계산 표시
+  // 대출 탭 상태 갱신
+  document.getElementById('loanStatusText').innerText = fmt(state.debt);
+  document.getElementById('loanInterestText').innerText = fmt(Math.floor(state.debt * 0.015)) + " /월";
+
   let salaryBonus = (state.player.charId === 'STAMINA') ? 1.3 : 1.0;
   let monthlyTotal = Math.floor(jobs[state.jobLevel].salary * salaryBonus);
   state.realEstates.forEach(rId => {
     const r = realEstateData.find(x => x.id === rId);
     if (r) monthlyTotal += r.rent;
   });
-  document.getElementById('summaryIncome').innerText = fmt(monthlyTotal) + " + 배당금";
+  document.getElementById('summaryIncome').innerText = fmt(monthlyTotal) + " + 배당금 (대출이자 차감 후)";
 
-  // 보유 플렉스 표시
   if (state.flexItems.length > 0) {
     const names = state.flexItems.map(id => flexData.find(f => f.id === id)?.name).join(', ');
     document.getElementById('summaryGear').innerHTML = `<span style="color:var(--accent); font-weight:700;">${names}</span> 장착 중`;
@@ -1570,6 +1756,11 @@ function renderAll() {
     `;
   });
   document.getElementById('stockList').innerHTML = stockHtml;
+
+  // 미니 차트 실시간 갱신
+  if (selectedStockId) {
+    document.getElementById('miniChartContainer').innerHTML = renderMiniChart(selectedStockId);
+  }
 
   // 선물 포지션 리스트
   if (state.positions.length === 0) {
@@ -1643,6 +1834,7 @@ function renderAll() {
   let jobHtml = `
     <div style="font-size:13px; line-height:1.6;">
       현재 직급: <b>${jobs[state.jobLevel].name}</b> (기본급: ${fmt(jobs[state.jobLevel].salary)})<br>
+      대출 한도: <b style="color:var(--blue);">${fmt(getMaxLoanLimit())}</b><br>
       ${nextJob ? `다음 단계: <b>${nextJob.name}</b> (필요 비용: ${fmt(nextJob.cost * discountJob)})<br>
       <button class="btn btn-dark btn-sm" style="margin-top:6px;" onclick="upgradeJob()">승진 시험/이직하기</button>` : '최고 직급에 도달했습니다!'}
     </div>
@@ -1684,7 +1876,7 @@ function setFuturesMarginRatio(ratio) {
   document.getElementById('futuresMargin').value = Math.floor(state.cash * ratio);
 }
 
-// 초기 실행: 캐릭터 생성창 및 기존 세이브 확인
+// 초기 실행
 renderCharacterCreator();
 checkExistingAutoSave();
 </script>
